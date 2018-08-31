@@ -99,34 +99,49 @@ impl Gpio<Uninitialized> {
         }
     }
 
+    pub fn set_function(&mut self, function: Function) {
+        let pin = self.pin;
+        let register = &mut self.registers.FSEL[(pin / 10) as usize];
+        let mask = (function as u32) << ((pin % 10) * 3);
+        let register_val = register.read();
+        register.write(register_val | mask)
+    }
+
     /// Enables the alternative function `function` for `self`. Consumes self
     /// and returns a `Gpio` structure in the `Alt` state.
-    pub fn into_alt(self, function: Function) -> Gpio<Alt> {
-        unimplemented!()
+    pub fn into_alt(mut self, function: Function) -> Gpio<Alt> {
+        self.set_function(function);
+        self.transition()
     }
 
     /// Sets this pin to be an _output_ pin. Consumes self and returns a `Gpio`
     /// structure in the `Output` state.
-    pub fn into_output(self) -> Gpio<Output> {
-        self.into_alt(Function::Output).transition()
+    pub fn into_output(mut self) -> Gpio<Output> {
+        self.set_function(Function::Output);
+        self.transition()
     }
 
     /// Sets this pin to be an _input_ pin. Consumes self and returns a `Gpio`
     /// structure in the `Input` state.
-    pub fn into_input(self) -> Gpio<Input> {
-        self.into_alt(Function::Input).transition()
+    pub fn into_input(mut self) -> Gpio<Input> {
+        self.set_function(Function::Input);
+        self.transition()
     }
 }
 
 impl Gpio<Output> {
     /// Sets (turns on) the pin.
     pub fn set(&mut self) {
-        unimplemented!()
+        let pin = self.pin;
+        let register = &mut self.registers.SET[(pin / 32) as usize];
+        register.write(1 << (pin % 32));
     }
 
     /// Clears (turns off) the pin.
     pub fn clear(&mut self) {
-        unimplemented!()
+        let pin = self.pin;
+        let register = &mut self.registers.CLR[(pin / 32) as usize];
+        register.write(1 << (pin % 32));
     }
 }
 
@@ -134,6 +149,8 @@ impl Gpio<Input> {
     /// Reads the pin's value. Returns `true` if the level is high and `false`
     /// if the level is low.
     pub fn level(&mut self) -> bool {
-        unimplemented!()
+        let pin = self.pin;
+        let register = &mut self.registers.LEV[(pin / 32) as usize];
+        (register.read() >> (pin % 32)) == 1
     }
 }
