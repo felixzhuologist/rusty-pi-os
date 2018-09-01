@@ -20,19 +20,14 @@ pub mod mutex;
 pub mod console;
 pub mod shell;
 
-const GPIO_BASE: usize = 0x3F000000 + 0x200000;
-
-const GPIO_FSEL1: *mut u32 = (GPIO_BASE + 0x04) as *mut u32;
-const GPIO_SET0: *mut u32 = (GPIO_BASE + 0x1C) as *mut u32;
-const GPIO_CLR0: *mut u32 = (GPIO_BASE + 0x28) as *mut u32;
-
 #[no_mangle]
 pub unsafe extern "C" fn kmain() {
-    let mut gpio = pi::gpio::Gpio::new(16).into_output();
+    use std::fmt::Write;
+
+    let mut uart = pi::uart::MiniUart::new();
     loop {
-      gpio.set();
-      pi::timer::spin_sleep_ms(1000);
-      gpio.clear();
-      pi::timer::spin_sleep_ms(1000);
+        let byte = uart.read_byte();
+        uart.write_byte(byte);
+        uart.write_str("<-");
     }
 }

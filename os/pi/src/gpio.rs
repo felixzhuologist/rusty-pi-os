@@ -102,9 +102,7 @@ impl Gpio<Uninitialized> {
     pub fn set_function(&mut self, function: Function) {
         let pin = self.pin;
         let register = &mut self.registers.FSEL[(pin / 10) as usize];
-        let mask = (function as u32) << ((pin % 10) * 3);
-        let register_val = register.read();
-        register.write(register_val | mask)
+        register.or_mask((function as u32) << ((pin % 10) * 3));
     }
 
     /// Enables the alternative function `function` for `self`. Consumes self
