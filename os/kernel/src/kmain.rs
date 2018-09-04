@@ -23,11 +23,10 @@ pub mod shell;
 #[no_mangle]
 pub unsafe extern "C" fn kmain() {
     use std::fmt::Write;
+    use console::{kprint, CONSOLE};
 
-    let mut uart = pi::uart::MiniUart::new();
     loop {
-        let byte = uart.read_byte();
-        uart.write_byte(byte);
-        uart.write_str("<-");
+        let byte = CONSOLE.lock().read_byte();
+        kprint!("{:?}<-", byte);
     }
 }
