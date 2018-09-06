@@ -22,11 +22,5 @@ pub mod shell;
 
 #[no_mangle]
 pub unsafe extern "C" fn kmain() {
-    use std::fmt::Write;
-    use console::{kprint, CONSOLE};
-
-    loop {
-        let byte = CONSOLE.lock().read_byte();
-        kprint!("{:?}<-", byte);
-    }
+    shell::shell("❯❯❯ ");
 }
