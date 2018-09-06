@@ -1,5 +1,8 @@
 #![feature(asm, lang_items)]
+#![feature(panic_implementation)]
 
+#[macro_use]
+extern crate core;
 extern crate xmodem;
 extern crate pi;
 
