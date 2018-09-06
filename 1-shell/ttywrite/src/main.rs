@@ -59,7 +59,7 @@ fn progress_fn(progress: Progress) {
 }
 
 fn send_xmodem<T, U>(in_buf: &mut T, out_buf: &mut U) -> Result<(u64), io::Error> 
-    where T: io::Read, U: io::Read + io::Write {
+    where T: io::Read + std::fmt::Debug, U: io::Read + io::Write {
     match Xmodem::transmit_with_progress(in_buf, out_buf, progress_fn) {
         Ok(n) => Ok(n as u64),
         Err(e) => Err(e)

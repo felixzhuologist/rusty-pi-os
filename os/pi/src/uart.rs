@@ -168,9 +168,10 @@ mod uart_io {
                     "timed out waiting for first byte"))
             }
 
-            let num_read = 0;
+            let mut num_read = 0;
             while num_read < buf.len() && self.has_byte() {
                 buf[num_read] = self.read_byte();
+                num_read += 1;
             }
             Ok(num_read)
         }
