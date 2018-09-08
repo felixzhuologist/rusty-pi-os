@@ -2,6 +2,8 @@ TARGET ?= aarch64-none-elf
 CROSS ?= $(TARGET)
 
 CC := $(CROSS)-gcc
+TTYWRITE ?= ttywrite
+PI_TTY ?= /dev/tty.usbserial
 CCFLAGS ?= -Wall -O2 -nostdlib -nostartfiles -ffreestanding -pie -fpie
 # LDFLAGS ?= --gc-sections -static -pie -nostdlib -nostartfiles --no-dynamic-linker
 LDFLAGS ?= --gc-sections -static -nostdlib -nostartfiles --no-dynamic-linker
@@ -29,6 +31,9 @@ all: $(KERNEL).hex $(KERNEL).bin
 
 check:
 	@$(XARGO) check --target=$(TARGET)
+
+install: $(KERNEL).bin
+	$(TTYWRITE) -i $< $(PI_TTY)
 
 $(RUST_DEBUG_LIB): $(RUST_DEPS)
 	@echo "+ Building $@ [xargo]"
