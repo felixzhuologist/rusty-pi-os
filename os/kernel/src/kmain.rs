@@ -8,7 +8,7 @@
 #![feature(ptr_internals)]
 #![feature(panic_implementation)]
 #![feature(compiler_builtins_lib)]
-#![feature(pointer_methods)]
+#![feature(panic_info_message)]
 
 #[macro_use]
 extern crate core;
@@ -22,5 +22,7 @@ pub mod shell;
 
 #[no_mangle]
 pub unsafe extern "C" fn kmain() {
-    shell::shell("❯❯❯ ");
+    console::CONSOLE.lock().read_byte();
+    panic!("testing!");
+    // shell::shell("❯❯❯ ");
 }

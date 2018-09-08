@@ -1,6 +1,37 @@
+use console::kprintln;
+
+static PANIC_MSG: &'static str = "
+            (
+       (      )     )
+         )   (    (
+        (          `
+    .-\"\"^\"\"\"^\"\"^\"\"\"^\"\"-.
+    (//\\//\\//\\//\\//\\//)
+   ~\\^^^^^^^^^^^^^^^^^^/~
+     `================`
+
+    The pi is overdone.
+
+---------- PANIC ----------
+
+";
+
 #[lang = "eh_personality"] pub extern fn eh_personality() {}
 
-#[panic_implementation] #[no_mangle] pub extern fn panic_fmt(_panic: &::core::panic::PanicInfo) -> ! { loop{} }
+#[panic_implementation]
+#[no_mangle]
+pub extern fn panic_fmt(panic_info: &::core::panic::PanicInfo) -> ! {
+    kprintln!("{}", PANIC_MSG);
+    if let Some(location) = panic_info.location() {
+        kprintln!("FILE: {}", location.file());
+        kprintln!("LINE: {}", location.line());
+        kprintln!("COL: {}\n", location.column());
+    }
+    if let Some(args) = panic_info.message() {
+        kprintln!("{}\n", args);
+    }
+    loop { unsafe { asm!("wfe") } } // wait for event
+}
 
 #[no_mangle]
 pub unsafe extern fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
