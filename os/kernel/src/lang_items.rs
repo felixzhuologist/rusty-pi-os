@@ -33,6 +33,11 @@ pub extern fn panic_fmt(panic_info: &::core::panic::PanicInfo) -> ! {
     loop { unsafe { asm!("wfe") } } // wait for event
 }
 
+#[alloc_error_handler]
+fn foo(_: ::core::alloc::Layout) -> ! {
+    loop { unsafe { asm!("wfe") } } // wait for event
+}
+
 #[no_mangle]
 pub unsafe extern fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
     let mut i = 0;
