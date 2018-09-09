@@ -22,7 +22,12 @@ panic = "abort"
 lto = true
 
 [dependencies]
-pi = { path = "../pi", features = ["std"] }
+std = { path = "../std" }
+pi = { path = "../pi", features=["std"] }
 
 # from assignment 1
 stack-vec = { path = "../../1-shell/stack-vec/" }
+
+[package.metadata.cargo-xbuild]
+memcpy = true
+sysroot_path = "target/sysroot"
