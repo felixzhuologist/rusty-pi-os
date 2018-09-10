@@ -32,8 +32,8 @@ pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 
 #[no_mangle]
 pub unsafe extern "C" fn kmain() {
-    ALLOCATOR.initialize();
     console::CONSOLE.lock().read_byte();
-    panic!("testing!");
-    // shell::shell("❯❯❯ ");
+    for tag in pi::atags::Atags::get() {
+        console::kprintln!("{:#?}", tag);
+    }
 }
