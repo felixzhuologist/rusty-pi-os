@@ -9,7 +9,8 @@
 #![feature(panic_implementation)]
 #![feature(compiler_builtins_lib)]
 #![feature(panic_info_message)]
-#![feature(alloc, allocator_api, alloc_error_handler, global_allocator)]
+#![feature(raw_vec_internals)]
+#![feature(alloc, allocator_api, alloc_error_handler)]
 
 extern crate alloc;
 #[macro_use]
@@ -32,8 +33,14 @@ pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 
 #[no_mangle]
 pub unsafe extern "C" fn kmain() {
+    ALLOCATOR.initialize();
+    // wait until a key is pressed before proceeding to the rest of the program,
+    // otherwise things will be printed before you have connected over serial
     console::CONSOLE.lock().read_byte();
-    for tag in pi::atags::Atags::get() {
-        console::kprintln!("{:#?}", tag);
+
+    let mut v = vec![];
+    for i in 0..1000 {
+        v.push(i);
     }
+    console::kprintln!("{:?}", v);
 }

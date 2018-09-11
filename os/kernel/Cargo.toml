@@ -22,7 +22,7 @@ panic = "abort"
 lto = true
 
 [dependencies]
-std = { path = "../std" }
+std = { path = "../std"}
 pi = { path = "../pi", features=["std"] }
 
 # from assignment 1

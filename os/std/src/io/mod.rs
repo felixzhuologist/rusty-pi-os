@@ -1837,10 +1837,6 @@ impl<T> Take<T> {
     /// # Ok(())
     /// # }
     /// ```
-    #[unstable(feature = "take_set_limit", issue = "42781")]
-    pub fn set_limit(&mut self, limit: u64) {
-        self.limit = limit;
-    }
 
     /// Consumes the `Take`, returning the wrapped reader.
     ///

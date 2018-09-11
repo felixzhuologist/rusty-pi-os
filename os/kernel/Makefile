@@ -16,7 +16,7 @@ RUST_BUILD_DIR := target/$(TARGET)
 RUST_DEBUG_LIB := $(RUST_BUILD_DIR)/debug/lib$(RUST_BINARY).a
 RUST_RELEASE_LIB := $(RUST_BUILD_DIR)/release/lib$(RUST_BINARY).a
 
-RUST_DEPS = Cargo.toml build.rs $(LD_LAYOUT) src/*
+RUST_DEPS = Cargo.toml build.rs $(LD_LAYOUT) src/* ../pi/src/*
 EXT_DEPS = $(BUILD_DIR)/init.o
 
 BUILD_DIR := build
@@ -31,6 +31,9 @@ all: $(KERNEL).hex $(KERNEL).bin
 
 check:
 	cargo check --target=$(TARGET)
+
+test:
+	CARGO_INCREMENTAL=0 cargo test
 
 install: $(KERNEL).bin
 	$(TTYWRITE) -i $< $(PI_TTY)

@@ -8,9 +8,8 @@
 
 // std is implemented with unstable features, many of which are internal
 // compiler details that will never be stable
-// #![feature(alloc)]
+#![feature(alloc)]
 #![feature(allocator_api)]
-// #![feature(alloc_system)]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unsafe)]
 #![feature(allow_internal_unstable)]
@@ -73,7 +72,7 @@
 #![feature(rustc_attrs)]
 // #![feature(sip_hash_13)]
 // #![feature(slice_bytes)]
-// #![feature(slice_concat_ext)]
+#![feature(slice_concat_ext)]
 #![feature(slice_internals)]
 #![feature(slice_patterns)]
 #![feature(staged_api)]
@@ -121,9 +120,9 @@ use prelude::v1::*;
 //                  debug_assert_ne, unreachable, unimplemented, write, writeln, try)]
 extern crate core as __core;
 
-// #[macro_use]
-// #[macro_reexport(vec, format)]
-// extern crate alloc;
+#[allow(unused_imports)]
+#[macro_use]
+extern crate alloc as alloc_crate;
 // extern crate alloc_system;
 // extern crate std_unicode;
 // #[doc(masked)]
@@ -209,23 +208,23 @@ pub use core::u32;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::u64;
 // #[stable(feature = "rust1", since = "1.0.0")]
-// pub use alloc::boxed;
-// #[stable(feature = "rust1", since = "1.0.0")]
-// pub use alloc::rc;
-// #[stable(feature = "rust1", since = "1.0.0")]
-// pub use alloc::borrow;
-// #[stable(feature = "rust1", since = "1.0.0")]
-// pub use alloc::fmt;
+// pub use core::fmt;
 #[stable(feature = "rust1", since = "1.0.0")]
-pub use core::fmt;
-// #[stable(feature = "rust1", since = "1.0.0")]
-// pub use alloc::slice;
-// #[stable(feature = "rust1", since = "1.0.0")]
-// pub use alloc::str;
-// #[stable(feature = "rust1", since = "1.0.0")]
-// pub use alloc::string;
-// #[stable(feature = "rust1", since = "1.0.0")]
-// pub use alloc::vec;
+pub use alloc_crate::boxed;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use alloc_crate::rc;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use alloc_crate::borrow;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use alloc_crate::fmt;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use alloc_crate::slice;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use alloc_crate::str;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use alloc_crate::string;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use alloc_crate::vec;
 // #[stable(feature = "rust1", since = "1.0.0")]
 // pub use std_unicode::char;
 #[stable(feature = "rust1", since = "1.0.0")]

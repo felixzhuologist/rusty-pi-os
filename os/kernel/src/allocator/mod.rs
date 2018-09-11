@@ -1,14 +1,16 @@
+extern crate pi;
+
 mod linked_list;
 mod util;
 
-#[path = "bump.rs"]
+#[path = "bin.rs"]
 mod imp;
 
 #[cfg(test)]
 mod tests;
 
 use mutex::Mutex;
-use alloc::alloc::{AllocErr, Layout};
+use alloc::alloc::Layout;
 use core::alloc::GlobalAlloc;
 use std::cmp::max;
 
@@ -57,7 +59,10 @@ unsafe impl GlobalAlloc for Allocator {
     /// (`AllocError::Exhausted`) or `layout` does not meet this allocator's
     /// size or alignment constraints (`AllocError::Unsupported`).
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        unimplemented!()
+        self.0.lock().as_mut()
+            .expect("allocator uninitialized")
+            .alloc(layout)
+            .expect("alloc failed")
     }
 
     /// Deallocates the memory referenced by `ptr`.
@@ -86,8 +91,17 @@ extern "C" {
 /// system if it can be determined. If it cannot, `None` is returned.
 ///
 /// This function is expected to return `Some` under all normal cirumstances.
-fn memory_map() -> Option<(usize, usize)> {
+pub fn memory_map() -> Option<(usize, usize)> {
     let binary_end = unsafe { (&_end as *const u8) as u32 };
 
-    unimplemented!("memory map fetch")
+    for tag in pi::atags::Atags::get() {
+        match tag.mem() {
+            Some(mem) => {
+                let start = max(mem.start, binary_end);
+                return Some((start as usize, (mem.start + mem.size) as usize));
+            }
+            None => continue
+        }
+    }
+    None
 }

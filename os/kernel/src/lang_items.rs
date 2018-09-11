@@ -16,8 +16,11 @@ static PANIC_MSG: &'static str = "
 
 ";
 
-#[lang = "eh_personality"] pub extern fn eh_personality() {}
+#[cfg(not(test))]
+#[lang = "eh_personality"]
+pub extern fn eh_personality() {}
 
+#[cfg(not(test))]
 #[panic_implementation]
 #[no_mangle]
 pub extern fn panic_fmt(panic_info: &::core::panic::PanicInfo) -> ! {
@@ -33,6 +36,7 @@ pub extern fn panic_fmt(panic_info: &::core::panic::PanicInfo) -> ! {
     loop { unsafe { asm!("wfe") } } // wait for event
 }
 
+#[cfg(not(test))]
 #[alloc_error_handler]
 fn foo(_: ::core::alloc::Layout) -> ! {
     loop { unsafe { asm!("wfe") } } // wait for event
