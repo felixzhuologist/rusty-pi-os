@@ -110,3 +110,10 @@ impl<T> SliceExt for [T] {
         from_raw_parts_mut(new_ptr, new_len)
     }
 }
+
+pub fn from_le(bytes: &[u8]) -> u32 {
+    (bytes[0] as u32) |
+    ((bytes[1] as u32) << 8) |
+    ((bytes[2] as u32) << 16) |
+    ((bytes[3] as u32) << 24)
+}
