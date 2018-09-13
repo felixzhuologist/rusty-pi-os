@@ -1,4 +1,4 @@
-use std::{io, fmt};
+use std::{cmp, io, fmt};
 use std::collections::HashMap;
 
 use traits::BlockDevice;
@@ -70,6 +70,19 @@ impl CachedDevice {
         }
     }
 
+    fn read(&mut self, virt: u64) -> io::Result<Vec<u8>> {
+        let (sector, num_sectors) = self.virtual_to_physical(virt);
+        let sector_size = self.device.sector_size();
+        let mut data = vec![0; (num_sectors * sector_size) as usize];
+        for i in 0..num_sectors {
+            let start = sector_size * i;
+            self.device.read_sector(
+                sector + i,
+                &mut data[start as usize..(start + sector_size) as usize])?;
+        }
+        Ok(data)
+    }
+
     /// Returns a mutable reference to the cached sector `sector`. If the sector
     /// is not already cached, the sector is first read from the disk.
     ///
@@ -91,12 +104,31 @@ impl CachedDevice {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get(&mut self, sector: u64) -> io::Result<&[u8]> {
-        unimplemented!("CachedDevice::get()")
+        let update_cache = match self.cache.get(&sector) {
+            Some(CacheEntry { data: cached, dirty: false }) => false,
+            _ => true
+        };
+
+        if update_cache {
+            let data = self.read(sector)?;
+            self.cache.insert(sector, CacheEntry::new(data));
+        }
+
+        Ok(&self.cache.get(&sector).unwrap().data)
     }
 }
 
-// FIXME: Implement `BlockDevice` for `CacheDevice`. The `read_sector` and
-// `write_sector` methods should only read/write from/to cached sectors.
+impl BlockDevice for CachedDevice {
+    fn read_sector(&mut self, n: u64, buf: &mut [u8]) -> io::Result<usize> {
+        let amount_to_read = cmp::min(self.partition.sector_size as usize, buf.len());
+        buf.copy_from_slice(&(self.get(n)?)[..amount_to_read]);
+        Ok(amount_to_read)
+    }
+
+    fn write_sector(&mut self, n: u64, buf: &[u8]) -> io::Result<usize> {
+        unimplemented!()
+    }
+}
 
 impl fmt::Debug for CachedDevice {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -104,5 +136,11 @@ impl fmt::Debug for CachedDevice {
             .field("device", &"<block device>")
             .field("cache", &self.cache)
             .finish()
+    }
+}
+
+impl CacheEntry {
+    pub fn new(data: Vec<u8>) -> CacheEntry {
+        CacheEntry { data, dirty: false }
     }
 }

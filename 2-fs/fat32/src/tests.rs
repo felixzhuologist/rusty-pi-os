@@ -4,7 +4,7 @@ use std::io::prelude::*;
 use std::io::Cursor;
 use std::path::Path;
 
-use vfat::{Shared, VFat, BiosParameterBlock};
+use vfat::{Shared, VFat, BiosParameterBlock, CachedDevice, Partition};
 use mbr::{MasterBootRecord, CHS, PartitionEntry};
 use traits::*;
 

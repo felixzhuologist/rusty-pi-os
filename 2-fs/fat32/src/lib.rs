@@ -1,5 +1,7 @@
 #![feature(decl_macro)]
 #![allow(safe_packed_borrows)]
+#![feature(vec_resize_default)]
+#![feature(nll)]
 
 #[cfg(not(target_endian="little"))]
 compile_error!("only little endian platforms supported");

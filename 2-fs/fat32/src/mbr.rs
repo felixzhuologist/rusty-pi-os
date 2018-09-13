@@ -74,6 +74,17 @@ impl MasterBootRecord {
 
         Ok(MasterBootRecord { partitions })
     }
+
+    /// Return the offset in physical sectors of the first FAT partition if one
+    /// exists
+    pub fn get_fat_partition_offset(&self) -> Option<u32> {
+        for partition in self.partitions.iter() {
+            if partition.partition_type == 0x0b || partition.partition_type == 0x0c {
+                return Some(partition.relative_sector);
+            }
+        }
+        None
+    }
 }
 
 impl fmt::Debug for MasterBootRecord {
