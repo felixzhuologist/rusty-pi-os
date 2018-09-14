@@ -1,5 +1,5 @@
 use std::io;
-use std::path::Path;
+use std::path::{Component, Path};
 use std::mem::size_of;
 use std::cmp::min;
 
@@ -7,6 +7,7 @@ use util::{SliceExt, from_le};
 use mbr::MasterBootRecord;
 use vfat::{Shared, Cluster, File, Dir, Entry, FatEntry, Error, Status};
 use vfat::{BiosParameterBlock, CachedDevice, Partition};
+use traits;
 use traits::{FileSystem, BlockDevice};
 
 const FAT_ENTRY_SIZE: u16 = 4;
@@ -27,26 +28,30 @@ impl VFat {
         where T: BlockDevice + 'static
     {
         let mbr = MasterBootRecord::from(&mut device)?;
-        let bpb_offset = mbr.get_fat_partition_offset();
-        if bpb_offset.is_none() {
-            return Err(Error::NotFound)
-        }
 
-        let bpb = BiosParameterBlock::from(&mut device, bpb_offset.unwrap() as u64)?;
+        let bpb_offset = match mbr.get_fat_partition_offset() {
+            Some(offset) => offset,
+            None => { return Err(Error::NotFound); }
+        };
+
+        let bpb = BiosParameterBlock::from(&mut device, bpb_offset as u64)?;
+        let fat_start_sector = bpb_offset as u64 + bpb.num_reserved as u64;
+        let data_start_sector = fat_start_sector +
+            (bpb.sectors_per_fat32 as u64) *
+            (bpb.num_fat as u64);
+
         Ok(Shared::new(VFat {
             device: CachedDevice::new(
                 device,
                 Partition {
-                    start: (bpb_offset.unwrap() + 1) as u64,
+                    start: bpb_offset as u64,
                     sector_size: bpb.bytes_per_sector as u64
                 }),
             bytes_per_sector: bpb.bytes_per_sector as u16,
             sectors_per_cluster: bpb.sectors_per_cluster,
-            sectors_per_fat: bpb.sectors_per_fat as u32,
-            fat_start_sector: bpb.num_reserved as u64,
-            data_start_sector:
-                (bpb.sectors_per_fat32 as u64) * (bpb.num_fat as u64) +
-                (bpb.num_reserved as u64),
+            sectors_per_fat: bpb.sectors_per_fat32 as u32,
+            fat_start_sector,
+            data_start_sector,
             root_dir_cluster: Cluster::from(bpb.root)
         }))
     }
@@ -58,8 +63,18 @@ impl VFat {
        // offset: usize, TODO: WAT?
        buf: &mut [u8]
     ) -> io::Result<usize> {
-        let start_read_sector = self.data_start_sector as u64 + cluster.0 as u64 * self.sectors_per_cluster as u64;
-        self.device.read_sector(start_read_sector, &mut buf[..])
+        let start_read_sector = self.data_start_sector as u64 +
+            (cluster.0.saturating_sub(2)) as u64 * 
+            self.sectors_per_cluster as u64;
+        let mut bytes_read = 0;
+        for i in 0..self.sectors_per_cluster {
+            let start_byte = (i as u16 * self.bytes_per_sector) as usize;
+            bytes_read += self.device.read_sector(
+                start_read_sector + i as u64, 
+                &mut buf[start_byte..start_byte + self.bytes_per_sector as usize]
+            )?;
+        }
+        Ok(bytes_read)
     }
 
     // TODO: The following methods may be useful here:
@@ -87,7 +102,7 @@ impl VFat {
                         cluster_cursor, &mut buf[bytes_read..])?;
                     next
                 },
-                Status::Eoc(_) => { 
+                Status::Eoc(_) => {
                     buf.resize_default(
                         buf.len() +
                         self.bytes_per_sector as usize *
@@ -118,7 +133,8 @@ impl VFat {
         // sector with entries 10-20 and we want sectore 12, this should be 2
         let fat_entry_index = cluster.0 % entries_per_sector;
 
-        let fat_entries = self.device.get(fat_sector_index.into())?;
+        let fat_entries = 
+            self.device.get(self.fat_start_sector as u64 + fat_sector_index as u64)?;
         let idx = (fat_entry_index * FAT_ENTRY_SIZE as u32) as usize;
         let raw_fat_entry = from_le(&fat_entries[idx..idx + 4]);
         Ok(FatEntry(raw_fat_entry))
@@ -126,12 +142,33 @@ impl VFat {
 }
 
 impl<'a> FileSystem for &'a Shared<VFat> {
-    type File = ::traits::Dummy;
-    type Dir = ::traits::Dummy;
-    type Entry = ::traits::Dummy;
+    type File = File;
+    type Dir = Dir;
+    type Entry = Entry;
 
     fn open<P: AsRef<Path>>(self, path: P) -> io::Result<Self::Entry> {
-        unimplemented!("FileSystem::open()")
+        let mut current_dir = Entry::Dir(Dir {
+            start_cluster: self.borrow().root_dir_cluster,
+            vfat: self.clone(),
+            metadata: Default::default(),
+        });
+
+        for file_component in path.as_ref().components() {
+            if let Component::Normal(name) = file_component {
+                match traits::Entry::as_dir(&current_dir) {
+                    Some(ref dir) => {
+                        current_dir = dir.find(name)?;
+                    },
+                    None => {
+                        return Err(
+                            io::Error::new(
+                                io::ErrorKind::InvalidInput,
+                                "tried to traverse through file."));
+                    }
+                }
+            }
+        }
+        Ok(current_dir)
     }
 
     fn create_file<P: AsRef<Path>>(self, _path: P) -> io::Result<Self::File> {
@@ -139,13 +176,16 @@ impl<'a> FileSystem for &'a Shared<VFat> {
     }
 
     fn create_dir<P>(self, _path: P, _parents: bool) -> io::Result<Self::Dir>
-        where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
     {
         unimplemented!("read only file system")
     }
 
     fn rename<P, Q>(self, _from: P, _to: Q) -> io::Result<()>
-        where P: AsRef<Path>, Q: AsRef<Path>
+    where
+        P: AsRef<Path>,
+        Q: AsRef<Path>,
     {
         unimplemented!("read only file system")
     }

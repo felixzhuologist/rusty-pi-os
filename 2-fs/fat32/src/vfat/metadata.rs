@@ -21,14 +21,15 @@ pub struct Attributes(pub u8);
 #[repr(C, packed)]
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Timestamp {
+    pub time: Time,
     pub date: Date,
-    pub time: Time
 }
 
 /// Metadata for a directory entry.
 #[derive(Default, Debug, Clone)]
 pub struct Metadata {
     pub name: String,
+    pub size: u32,
     pub attributes: Attributes,
     pub created: Timestamp,
     pub accessed: Date,
@@ -37,7 +38,7 @@ pub struct Metadata {
 
 impl traits::Timestamp for Timestamp {
     fn year(&self) -> usize {
-        ((self.date.0 >> 9) & 0b1111111) as usize
+        1980 + ((self.date.0 >> 9) & 0b1111111) as usize
     }
     fn month(&self) -> u8 {
         ((self.date.0 >> 5) & 0xF) as u8
@@ -56,19 +57,20 @@ impl traits::Timestamp for Timestamp {
     }
 
     fn second(&self) -> u8 {
-        (self.time.0 & 0b11111) as u8
+        2 * (self.time.0 & 0b11111) as u8
     }
 }
-// FIXME: Implement `traits::Metadata` for `Metadata`.
+
+// TODO: use constants for attribute masks
 impl traits::Metadata for Metadata {
     type Timestamp = Timestamp;
 
     fn read_only(&self) -> bool {
-        self.attributes.0 == 0x01
+        self.attributes.0 & 0x01 != 0
     }
 
     fn hidden(&self) -> bool {
-        self.attributes.0 == 0x02
+        self.attributes.0 & 0x02 != 0
     }
 
     fn created(&self) -> Self::Timestamp {

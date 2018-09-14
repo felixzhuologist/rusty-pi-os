@@ -28,7 +28,7 @@ impl FatEntry {
         match self.0 & 0x0FFFFFFF {
             0 => Status::Free,
             0x1 => Status::Reserved,
-            0x2...0xFFFFFFEF => Status::Data(cluster::Cluster::from(self.0)),
+            0x2...0xFFFFFEF => Status::Data(cluster::Cluster::from(self.0)),
             0xFFFFFF0...0xFFFFFF6 => Status::Reserved,
             0xFFFFFF7 => Status::Bad,
             _ => Status::Eoc(self.0)

@@ -71,14 +71,14 @@ impl CachedDevice {
     }
 
     fn read(&mut self, virt: u64) -> io::Result<Vec<u8>> {
-        let (sector, num_sectors) = self.virtual_to_physical(virt);
+        let (physical_sector, num_sectors) = self.virtual_to_physical(virt);
         let sector_size = self.device.sector_size();
         let mut data = vec![0; (num_sectors * sector_size) as usize];
         for i in 0..num_sectors {
-            let start = sector_size * i;
+            let start = (self.device.sector_size() * i) as usize;
             self.device.read_sector(
-                sector + i,
-                &mut data[start as usize..(start + sector_size) as usize])?;
+                physical_sector + i,
+                &mut data[start..start + self.device.sector_size() as usize])?;
         }
         Ok(data)
     }
@@ -105,7 +105,7 @@ impl CachedDevice {
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get(&mut self, sector: u64) -> io::Result<&[u8]> {
         let update_cache = match self.cache.get(&sector) {
-            Some(CacheEntry { data: cached, dirty: false }) => false,
+            Some(CacheEntry { data: _, dirty: false }) => false,
             _ => true
         };
 

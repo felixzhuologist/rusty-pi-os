@@ -69,7 +69,17 @@ impl Dir {
     /// If `name` contains invalid UTF-8 characters, an error of `InvalidInput`
     /// is returned.
     pub fn find<P: AsRef<OsStr>>(&self, name: P) -> io::Result<Entry> {
-        unimplemented!("Dir::find()")
+        for entry in traits::Dir::entries(self)? {
+            let name = match name.as_ref().to_str() {
+                None => { return Err(io::Error::new(io::ErrorKind::InvalidInput, "name not valid utf8")) },
+                Some(name) => name
+            };
+
+            if traits::Entry::name(&entry).eq_ignore_ascii_case(name) {
+                return Ok(entry);
+            }
+        }
+        Err(io::Error::new(io::ErrorKind::NotFound, "Entry not found"))
     }
 }
 
@@ -86,7 +96,7 @@ impl DirIter {
         let mut static_buf = [0; BYTES_IN_ENTRY];
         vfat.read_chain(dir.start_cluster, &mut buf)?;
         for entry in buf.chunks(BYTES_IN_ENTRY) {
-            static_buf.copy_from_slice(&entry[..]);
+            static_buf.copy_from_slice(entry);
             unsafe { dir_entries.push(mem::transmute(static_buf)); }
         }
         dir_entries.reverse();
@@ -97,67 +107,111 @@ impl DirIter {
 impl Iterator for DirIter {
     type Item = Entry;
 
-    fn next(&mut self) -> Option<Entry>{
+    fn next(&mut self) -> Option<Entry> {
         if self.dir_entries.is_empty() {
             return None;
         }
 
         let mut next = self.dir_entries.pop().unwrap();
-        let mut name = String::new();
         let mut unknown = unsafe { next.unknown };
+        while unknown._bytes[0] == 0 || unknown._bytes[0] == 0x0E5 {
+            if unknown._bytes[0] == 0x0E5 {
+                next = match self.dir_entries.pop() {
+                    Some(val) => val,
+                    None => { return None; }
+                };
+                unknown = unsafe { next.unknown };
+            } else {
+                return None;
+            }
+        }
+
+        let mut name = String::new();
+        let mut name_bytes = Vec::new();
         let mut is_lfn = false;
 
         while unknown._bytes[11] == 0xF {
             let lfn = unsafe { next.long_filename };
-            is_lfn = true;
 
-            let mut buf = Vec::new();
-            buf.extend_from_slice(&lfn.chars1);
-            buf.extend_from_slice(&lfn.chars2);
-            buf.extend_from_slice(&lfn.chars3);
+            if lfn.seq_no != 0xE5 {
+                is_lfn = true;
+                let mut tmp_buf = Vec::new();
+                tmp_buf.extend_from_slice(&lfn.chars1);
+                tmp_buf.extend_from_slice(&lfn.chars2);
+                tmp_buf.extend_from_slice(&lfn.chars3);
 
-            let mut chars: Vec<u16> = buf.iter().skip(1).step_by(2)
-                .zip(buf.iter().step_by(2))
-                .map(|(first, second)| ((*first as u16) << 8) | (*second as u16))
-                .collect();
-            let end = match chars.iter().position(|n| *n == 0 || *n == 0xFF) {
-                Some(n) => n + 1,
-                None => buf.len()
-            };
-            name.push_str(&decode_utf16(&mut chars[..end].iter().cloned())
-                .map(|r| r.unwrap_or('_'))
-                .collect::<String>());
+                tmp_buf.reverse();
+                name_bytes.extend_from_slice(&tmp_buf);
+            }
+
             next = self.dir_entries.pop().unwrap();
             unknown = unsafe { next.unknown };
         }
+
+        name_bytes.reverse();
+
         let reg = unsafe { next.regular };
 
-        if !is_lfn {
-            name.push_str(&String::from_utf8_lossy(&reg.extension));
+        if is_lfn {
+            let mut chars: Vec<u16> = name_bytes
+                .iter()
+                .skip(1)
+                .step_by(2)
+                .zip(name_bytes.iter().step_by(2))
+                .map(|(first, second)| ((*first as u16) << 8) | (*second as u16))
+                .collect();
+
+            let end = match chars.iter().position(|n| *n == 0 || *n == 0xFF) {
+                Some(n) => n,
+                None => chars.len(),
+            };
+
+            name.push_str(
+                &decode_utf16(&mut chars[..end].iter().cloned())
+                    .map(|r| r.unwrap_or('_'))
+                    .collect::<String>(),
+            );
+        } else {
+            let end = match reg.filename.iter().position(|n| *n == 0 || *n == 0x20) {
+                Some(n) => n,
+                None => reg.filename.len(),
+            };
+
+            name.push_str(&String::from_utf8_lossy(&reg.filename[..end]));
+            let end = match reg.extension.iter().position(|b| *b == 0x00 || *b == 0x20) {
+                Some(pos) => pos,
+                None => reg.extension.len()
+            };
+            if end > 0 {
+                name.push_str(".");
+                name.push_str(&String::from_utf8_lossy(&reg.extension[..end]));
+            }
         }
 
-        let start_cluster =
-            ((reg.cluster_hi as u32) << 16) | (reg.cluster_lo as u32);
+        let start_cluster = ((reg.cluster_hi as u32) << 16) | (reg.cluster_lo as u32);
         let metadata = Metadata {
             name,
+            size: reg.size,
             attributes: reg.attributes,
             created: reg.created,
             accessed: reg.accessed,
             last_modified: reg.last_modified,
         };
 
-        Some(match reg.attributes.0 {
-            0x10 => Entry::Dir(Dir {
+        // TODO: use constant for attribute masks
+        if reg.attributes.0 & 0x10 != 0 {
+            Some(Entry::Dir(Dir {
                 metadata,
                 start_cluster: Cluster::from(start_cluster),
-                vfat: self.vfat.clone()
-            }),
-            _ => Entry::File(File {
+                vfat: self.vfat.clone(),
+            }))
+        } else {
+            Some(Entry::File(File::new(
                 metadata,
-                start_cluster: Cluster::from(start_cluster),
-                vfat: self.vfat.clone()
-            })
-        })
+                Cluster::from(start_cluster),
+                self.vfat.clone(),
+            )))
+        }
     }
 }
 
@@ -172,6 +226,11 @@ impl traits::Dir for Dir {
 
 impl fmt::Debug for Dir {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!()
+        f.debug_struct("Dir")
+            .field("name", &self.metadata.name)
+            .field("last_modified", &self.metadata.last_modified)
+            .field("created", &self.metadata.created)
+            .field("accessed", &self.metadata.accessed)
+            .finish()
     }
 }

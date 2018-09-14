@@ -67,6 +67,14 @@ impl BiosParameterBlock {
 
 impl fmt::Debug for BiosParameterBlock {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!("BiosParameterBlock::debug()")
+        f.debug_struct("BiosParameterBlock")
+            .field("oem_id", &self.oem_id)
+            .field("bytes_per_sector", &self.bytes_per_sector)
+            .field("num_reserved", &self.num_reserved)
+            .field("sectors_per_fat32", &self.sectors_per_fat32)
+            .field("sectors_per_cluster", &self.sectors_per_cluster)
+            .field("num_fats", &self.num_fat)
+            .field("root", &self.root)
+            .finish()
     }
 }

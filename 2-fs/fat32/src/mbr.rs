@@ -89,7 +89,9 @@ impl MasterBootRecord {
 
 impl fmt::Debug for MasterBootRecord {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!("MasterBootRecord::fmt()")
+        f.debug_struct("MasterBootRecord")
+            .field("partitions", &self.partitions)
+            .finish()
     }
 }
 
@@ -104,7 +106,6 @@ impl PartitionEntry {
     }
 
     pub fn read_data(&mut self, buf: &[u8]) -> Result<(), ()> {
-        println!("{}", buf[0]);
         self.bootable = match buf[0] {
             0 => false,
             0x80 => true,
