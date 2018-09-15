@@ -67,4 +67,5 @@ impl Metadata for Dummy {
     fn created(&self) -> Self::Timestamp { panic!("Dummy") }
     fn accessed(&self) -> Self::Timestamp { panic!("Dummy") }
     fn modified(&self) -> Self::Timestamp { panic!("Dummy") }
+    fn size(&self) -> u32 { panic!("Dummy") }
 }

@@ -147,28 +147,36 @@ impl<'a> FileSystem for &'a Shared<VFat> {
     type Entry = Entry;
 
     fn open<P: AsRef<Path>>(&self, path: P) -> io::Result<Self::Entry> {
-        let mut current_dir = Entry::Dir(Dir {
+        let mut traversed = Vec::new();
+        traversed.push(Entry::Dir(Dir {
             start_cluster: self.borrow().root_dir_cluster,
             vfat: (*self).clone(),
             metadata: Default::default(),
-        });
+        }));
 
         for file_component in path.as_ref().components() {
-            if let Component::Normal(name) = file_component {
-                match traits::Entry::as_dir(&current_dir) {
-                    Some(ref dir) => {
-                        current_dir = dir.find(name)?;
-                    },
-                    None => {
-                        return Err(
-                            io::Error::new(
-                                io::ErrorKind::InvalidInput,
-                                "tried to traverse through file."));
+            match file_component {
+                Component::Normal(name) => {
+                    match traits::Entry::as_dir(traversed.last().unwrap()) {
+                        Some(ref dir) => {
+                            traversed.push(dir.find(name)?);
+                        },
+                        None => {
+                            return Err(
+                                io::Error::new(
+                                    io::ErrorKind::InvalidInput,
+                                    "tried to traverse through file."));
+                        }
                     }
                 }
+                Component::CurDir |
+                // root dir should only match first component, in which case we ignore
+                Component::RootDir => { },
+                Component::ParentDir => { traversed.pop(); },
+                Component::Prefix(_) => { unimplemented!() },
             }
         }
-        Ok(current_dir)
+        Ok(traversed.pop().unwrap())
     }
 
     fn create_file<P: AsRef<Path>>(self, _path: P) -> io::Result<Self::File> {

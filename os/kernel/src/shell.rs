@@ -1,5 +1,23 @@
+use FILE_SYSTEM;
+use fat32::traits::{
+    FileSystem as FileSystemTrait,
+    Dir as DirTrait,
+    Entry as EntryTrait,
+    Metadata as MetadataTrait,
+    Timestamp as TimestampTrait
+};
+use fat32::vfat::{Dir, File};
+use std::path::{Path, PathBuf};
+use std::io;
+use std::io::Read;
 use stack_vec::StackVec;
 use console::{kprint, kprintln, CONSOLE};
+
+/// Contains all of the state related to the current shell. Until syscalls are
+/// implemented, this is just the current path
+struct ShellState {
+    pub path: PathBuf
+}
 
 /// Error type for `Command` parse failures.
 #[derive(Debug)]
@@ -11,6 +29,45 @@ enum Error {
 /// A structure representing a single shell command.
 struct Command<'a> {
     args: StackVec<'a, &'a str>
+}
+
+fn write_bool(b: bool, c: char) {
+    if b { kprint!("{}", c) } else { kprint!("-") }
+}
+
+fn write_timestamp<T: TimestampTrait>(ts: T) {
+    kprint!("{:02}/{:02}/{} {:02}:{:02}:{:02} ",
+           ts.month(), ts.day(), ts.year(), ts.hour(), ts.minute(), ts.second());
+}
+
+fn print_io_error(kind: io::ErrorKind) {
+    match kind {
+        io::ErrorKind::Other => { kprintln!("error: not a directory"); },
+        io::ErrorKind::NotFound => { kprintln!("error: not found"); },
+        io::ErrorKind::InvalidInput => { kprintln!("error: invalid utf8"); },
+        _ => { kprintln!("unknown error"); }
+    };
+}
+
+/// A wrapper around FILE_SYSTEM.open() that prints errors to the shell if any
+fn open_dir<P: AsRef<Path>>(path: P) -> Result<Dir, ()> {
+    match FILE_SYSTEM.open_dir(path) {
+        Err(err) => {
+            print_io_error(err.kind());
+            Err(())
+        },
+        Ok(dir) => Ok(dir)
+    }
+}
+
+fn open_file<P: AsRef<Path>>(path: P) -> Result<File, ()> {
+    match FILE_SYSTEM.open_file(path) {
+        Err(err) => {
+            print_io_error(err.kind());
+            Err(())
+        },
+        Ok(file) => Ok(file)
+    }
 }
 
 impl<'a> Command<'a> {
@@ -39,7 +96,8 @@ impl<'a> Command<'a> {
         self.args[0]
     }
 
-    fn process(&self) {
+    /// processes this command by printing output and updating the shell state
+    fn process(&self, state: &mut ShellState) {
         match self.path() {
             "echo" => {
                 let mut iter = self.args.iter();
@@ -49,6 +107,73 @@ impl<'a> Command<'a> {
                 }
                 kprintln!("");
             },
+            "ls" => {
+                let mut path = state.path.clone();
+                let list_all = self.args.len() > 1 && self.args[1] == "-a";
+
+                if self.args.len() == 2 && !self.args[1].starts_with("-") {
+                    path.push(self.args[1]);
+                } else if self.args.len() > 2 {
+                    path.push(self.args[2]);
+                };
+
+                if let Ok(dir) = open_dir(path) {
+                    for entry in dir.entries().expect("ls") {
+                        if list_all || !entry.metadata().hidden() {
+                            write_bool(entry.is_dir(), 'd');
+                            write_bool(entry.is_file(), 'f');
+                            write_bool(entry.metadata().read_only(), 'r');
+                            write_bool(entry.metadata().hidden(), 'h');
+                            kprint!("\t");
+
+                            write_timestamp(entry.metadata().modified());
+                            kprint!("\t");
+
+                            kprint!("{:>8}", entry.metadata().size());
+                            kprint!("\t");
+
+                            kprintln!("{}", entry.name());
+                        }
+                    }
+                }
+            },
+            "pwd" => {
+                kprintln!("{:?}", state.path);
+            },
+            "cd" => {
+                if self.args.len() < 2 {
+                    kprintln!("expected argument");
+                    return;
+                }
+                match self.args[1] {
+                    "." => { },
+                    ".." => { state.path.pop(); },
+                    s => {
+                        let mut dest = state.path.clone();
+                        dest.push(s);
+                        if let Ok(_) = open_dir(dest) {
+                            state.path.push(s);
+                        }
+                    }
+                };
+            },
+            "cat" => {
+                let mut iter = self.args.iter();
+                iter.next();
+                for file in iter {
+                    let mut path = state.path.clone();
+                    path.push(file);
+                    if let Ok(mut file) = open_file(path) {
+                        let mut contents = String::new();
+                        if file.read_to_string(&mut contents).is_err() {
+                            kprintln!("error printing file");
+                        } else {
+                            kprintln!("{}", contents);
+                        }
+                    }
+                }
+
+            }
             _ => { kprintln!("unknown command: {}", self.path()); }
         }
     }
@@ -56,6 +181,7 @@ impl<'a> Command<'a> {
 /// Starts a shell using `prefix` as the prefix for each line. This function
 /// never returns: it is perpetually in a shell loop.
 pub fn shell(prefix: &str) -> ! {
+    let mut state = ShellState { path: PathBuf::from("/") };
     let mut raw_buffer = [0u8; 512];
     let mut buffer = StackVec::new(&mut raw_buffer);
     let parsed_cmd: [&str; 64] = [""; 64];
@@ -88,7 +214,7 @@ pub fn shell(prefix: &str) -> ! {
         kprintln!("");
         if let Ok(s) = ::core::str::from_utf8(&buffer.as_slice()) {
             match Command::parse(s, &mut {parsed_cmd}) {
-                Ok(cmd) => { cmd.process(); },
+                Ok(cmd) => { cmd.process(&mut state); },
                 Err(Error::TooManyArgs) => { kprintln!("error: too many arguments"); },
                 Err(Error::Empty) => {}
             };

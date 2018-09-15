@@ -30,11 +30,6 @@ pub mod fs;
 #[cfg(not(test))]
 use allocator::Allocator;
 use fs::FileSystem;
-use fat32::traits::{
-    FileSystem as FileSystemTrait,
-    Dir as DirTrait,
-    Entry as EntryTrait
-};
 
 #[cfg(not(test))]
 #[global_allocator]
@@ -51,8 +46,5 @@ pub unsafe extern "C" fn kmain() {
     // otherwise things will be printed before you have connected over serial
     console::CONSOLE.lock().read_byte();
 
-    let dir = FILE_SYSTEM.open_dir("/").expect("root dir");
-    for entry in dir.entries().expect("iter") {
-        console::kprintln!("{:?}", entry.name());
-    }
+    shell::shell("❯❯❯ ");
 }

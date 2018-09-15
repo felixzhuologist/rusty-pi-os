@@ -84,6 +84,10 @@ impl traits::Metadata for Metadata {
     fn modified(&self) -> Self::Timestamp {
         self.last_modified
     }
+
+    fn size(&self) -> u32 {
+        self.size
+    }
 }
 
 // FIXME: Implement `fmt::Display` (to your liking) for `Metadata`.
