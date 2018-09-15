@@ -83,16 +83,17 @@
 // #![feature(termination_trait)]
 #![feature(test, rustc_private)]
 #![feature(thread_local)]
-// #![feature(toowned_clone_into)]
+#![feature(toowned_clone_into)]
 #![feature(try_from)]
 #![feature(unboxed_closures)]
-// #![feature(unicode)]
 #![feature(untagged_unions)]
 #![feature(unwind_attributes)]
-// #![feature(vec_push_all)]
+#![cfg_attr(stage0, feature(use_extern_macros))]
 #![feature(doc_cfg)]
 #![feature(doc_masked)]
 #![feature(doc_spotlight)]
+#![feature(hashmap_internals)]
+#![feature(try_reserve)]
 
 // TODO: These are additions.
 // #![feature(core_slice_ext)]
@@ -132,6 +133,8 @@ extern crate alloc as alloc_crate;
 // #[doc(masked)]
 // #[allow(unused_extern_crates)]
 // extern crate unwind;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use prelude::v1::*;
 
 // compiler-rt intrinsics
 #[doc(masked)]
@@ -144,6 +147,11 @@ extern crate alloc as alloc_crate;
 // // _not_ the globals used by "real" std. So this import, defined only during
 // // testing gives test-std access to real-std lang items and globals. See #2912
 // #[cfg(test)] extern crate std as realstd;
+// Re-export a few macros from core
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use core::{assert_eq, assert_ne, debug_assert, debug_assert_eq, debug_assert_ne};
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use core::{unreachable, unimplemented, write, writeln, try};
 
 // The standard macros that are not built-in to the compiler.
 #[macro_use]
@@ -225,10 +233,12 @@ pub use alloc_crate::str;
 pub use alloc_crate::string;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use alloc_crate::vec;
-// #[stable(feature = "rust1", since = "1.0.0")]
-// pub use std_unicode::char;
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use core::char;
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::u128;
+#[stable(feature = "core_hint", since = "1.27.0")]
+pub use core::hint;
 
 // TODO: This is an addition. This should should actually come from `alloc`.
 // pub mod str;
@@ -239,31 +249,32 @@ pub use core::u128;
 
 // #[macro_use]
 // pub mod thread;
-// pub mod ascii;
-// pub mod collections;
+pub mod ascii;
+pub mod collections;
 // pub mod env;
-// pub mod error;
-// pub mod ffi;
+pub mod error;
+pub mod ffi;
 // pub mod fs;
 pub mod io;
 // pub mod net;
-// pub mod num;
-// pub mod os;
+pub mod num;
+pub mod os;
 // pub mod panic;
-// pub mod path;
+pub mod path;
 // pub mod process;
 pub mod sync;
 // pub mod time;
 // pub mod heap;
 
 // // Platform-abstraction modules
-// #[macro_use]
-// mod sys_common;
-// mod sys;
+#[macro_use]
+mod sys_common;
+mod sys;
+
+pub mod alloc;
 
 // // Private support modules
-// mod panicking;
-// mod memchr;
+mod memchr;
 
 // // The runtime entry point and a few unstable public functions used by the
 // // compiler

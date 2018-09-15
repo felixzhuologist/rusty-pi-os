@@ -76,7 +76,7 @@ impl Xmodem<()> {
                     Ok(_) => {
                         written += n;
                         (transmitter.progress)(Progress::Packet(transmitter.packet));
-                        transmitter.packet += 1;
+                        transmitter.packet = transmitter.packet.wrapping_add(1);
                         continue 'next_packet;
                     }
                 }
@@ -123,7 +123,7 @@ impl Xmodem<()> {
                     Ok(n) => {
                         received += n;
                         (receiver.progress)(Progress::Packet(receiver.packet));
-                        receiver.packet += 1;
+                        receiver.packet = receiver.packet.wrapping_add(1);
                         into.write_all(&packet)?;
                         continue 'next_packet;
                     }

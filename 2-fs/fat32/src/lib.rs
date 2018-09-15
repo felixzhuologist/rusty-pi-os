@@ -6,6 +6,9 @@
 #[cfg(not(target_endian="little"))]
 compile_error!("only little endian platforms supported");
 
+#[macro_use]
+extern crate core;
+
 #[cfg(test)]
 mod tests;
 mod mbr;

@@ -12,35 +12,47 @@
 #![feature(raw_vec_internals)]
 #![feature(alloc, allocator_api, alloc_error_handler)]
 
-extern crate alloc;
 #[macro_use]
+#[allow(unused_imports)]
+extern crate alloc;
 extern crate core;
 extern crate pi;
 extern crate stack_vec;
+extern crate fat32;
 
 pub mod allocator;
 pub mod lang_items;
 pub mod mutex;
 pub mod console;
 pub mod shell;
+pub mod fs;
 
 #[cfg(not(test))]
 use allocator::Allocator;
+use fs::FileSystem;
+use fat32::traits::{
+    FileSystem as FileSystemTrait,
+    Dir as DirTrait,
+    Entry as EntryTrait
+};
 
 #[cfg(not(test))]
 #[global_allocator]
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 
+pub static FILE_SYSTEM: FileSystem = FileSystem::uninitialized();
+
 #[no_mangle]
+#[cfg(not(test))]
 pub unsafe extern "C" fn kmain() {
     ALLOCATOR.initialize();
+    FILE_SYSTEM.initialize();
     // wait until a key is pressed before proceeding to the rest of the program,
     // otherwise things will be printed before you have connected over serial
     console::CONSOLE.lock().read_byte();
 
-    let mut v = vec![];
-    for i in 0..1000 {
-        v.push(i);
+    let dir = FILE_SYSTEM.open_dir("/").expect("root dir");
+    for entry in dir.entries().expect("iter") {
+        console::kprintln!("{:?}", entry.name());
     }
-    console::kprintln!("{:?}", v);
 }

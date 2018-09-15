@@ -5,7 +5,6 @@ CC := $(CROSS)-gcc
 TTYWRITE ?= ttywrite
 PI_TTY ?= /dev/tty.usbserial
 CCFLAGS ?= -Wall -O2 -nostdlib -nostartfiles -ffreestanding -pie -fpie
-# LDFLAGS ?= --gc-sections -static -pie -nostdlib -nostartfiles --no-dynamic-linker
 LDFLAGS ?= --gc-sections -static -nostdlib -nostartfiles --no-dynamic-linker
 XBUILD ?= CARGO_INCREMENTAL=0 RUST_TARGET_PATH="$(shell pwd)" cargo xbuild
 
@@ -16,14 +15,18 @@ RUST_BUILD_DIR := target/$(TARGET)
 RUST_DEBUG_LIB := $(RUST_BUILD_DIR)/debug/lib$(RUST_BINARY).a
 RUST_RELEASE_LIB := $(RUST_BUILD_DIR)/release/lib$(RUST_BINARY).a
 
-RUST_DEPS = Cargo.toml build.rs $(LD_LAYOUT) src/* ../pi/src/*
+RUST_LIB_DEPS = ../pi/src/* ../pi/src/*/** \
+				../../1-shell/stack-vec/src/* \
+				../../2-fs/fat32/src/* ../../2-fs/fat32/src/*/**
+
+RUST_DEPS = Cargo.toml build.rs $(LD_LAYOUT) src/* $(RUST_LIB_DEPS)
 EXT_DEPS = $(BUILD_DIR)/init.o
 
 BUILD_DIR := build
 KERNEL := $(BUILD_DIR)/$(RUST_BINARY)
 RUST_LIB := $(BUILD_DIR)/$(RUST_BINARY).a
 
-.PHONY: all clean check
+.PHONY: all test clean check install
 
 VPATH = ext
 
