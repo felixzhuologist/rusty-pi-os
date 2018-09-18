@@ -26,6 +26,7 @@ pub mod mutex;
 pub mod console;
 pub mod shell;
 pub mod fs;
+pub mod aarch64;
 
 #[cfg(not(test))]
 use allocator::Allocator;
@@ -46,5 +47,6 @@ pub unsafe extern "C" fn kmain() {
     // otherwise things will be printed before you have connected over serial
     console::CONSOLE.lock().read_byte();
 
-    shell::shell("❯❯❯ ");
+    // shell::shell("❯❯❯ ");
+    unsafe { console::kprint!("current EL: {}", aarch64::current_el()); }
 }
