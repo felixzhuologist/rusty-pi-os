@@ -180,7 +180,7 @@ impl<'a> Command<'a> {
 }
 /// Starts a shell using `prefix` as the prefix for each line. This function
 /// never returns: it is perpetually in a shell loop.
-pub fn shell(prefix: &str) -> ! {
+pub fn shell(prefix: &str, debug: bool) {
     let mut state = ShellState { path: PathBuf::from("/") };
     let mut raw_buffer = [0u8; 512];
     let mut buffer = StackVec::new(&mut raw_buffer);
@@ -214,6 +214,7 @@ pub fn shell(prefix: &str) -> ! {
         kprintln!("");
         if let Ok(s) = ::core::str::from_utf8(&buffer.as_slice()) {
             match Command::parse(s, &mut {parsed_cmd}) {
+                Ok(ref cmd) if debug && cmd.path() == "exit" => { return; }
                 Ok(cmd) => { cmd.process(&mut state); },
                 Err(Error::TooManyArgs) => { kprintln!("error: too many arguments"); },
                 Err(Error::Empty) => {}
