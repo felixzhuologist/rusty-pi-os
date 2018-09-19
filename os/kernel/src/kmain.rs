@@ -28,10 +28,13 @@ pub mod shell;
 pub mod fs;
 pub mod traps;
 pub mod aarch64;
+pub mod process;
+pub mod vm;
 
 #[cfg(not(test))]
 use allocator::Allocator;
 use fs::FileSystem;
+use process::GlobalScheduler;
 
 #[cfg(not(test))]
 #[global_allocator]
@@ -39,15 +42,27 @@ pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 
 pub static FILE_SYSTEM: FileSystem = FileSystem::uninitialized();
 
+pub static SCHEDULER: GlobalScheduler = GlobalScheduler::uninitialized();
+
+/// entrypoint function for the first user process
+#[no_mangle]
+pub extern fn start_shell() {
+    unsafe { asm!("brk 1" :::: "volatile"); }
+    unsafe { asm!("brk 2" :::: "volatile"); }
+    shell::shell("DeBuG> ", true);
+    unsafe { asm!("brk 3" :::: "volatile"); }
+    shell::shell("❯❯❯ ", false);
+}
+
 #[no_mangle]
 #[cfg(not(test))]
 pub unsafe extern "C" fn kmain() {
     ALLOCATOR.initialize();
     FILE_SYSTEM.initialize();
+
     // wait until a key is pressed before proceeding to the rest of the program,
     // otherwise things will be printed before you have connected over serial
     console::CONSOLE.lock().read_byte();
 
-    unsafe { asm!("brk 2" :::: "volatile"); }
-    shell::shell("❯❯❯ ", false);
+    SCHEDULER.start();
 }

@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::cell::UnsafeCell;
 use std::ops::{DerefMut, Deref, Drop};
 
+#[derive(Debug)]
 #[repr(align(32))]
 pub struct Mutex<T> {
     data: UnsafeCell<T>,
