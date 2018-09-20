@@ -4,6 +4,8 @@ use start_shell;
 use mutex::Mutex;
 use process::{Process, State, Id};
 use traps::TrapFrame;
+use pi::interrupt::{Controller, Interrupt};
+use pi::timer;
 
 /// The `tick` time.
 // FIXME: When you're ready, change this to something more reasonable.
@@ -38,6 +40,9 @@ impl GlobalScheduler {
     /// using timer interrupt based preemptive scheduling. This method should
     /// not return under normal conditions.
     pub fn start(&self) {
+        Controller::new().enable(Interrupt::Timer1);
+        timer::tick_in(TICK);
+
         let mut first_process = Process::new().unwrap();
         first_process.trap_frame.spsr = 0;
         first_process.trap_frame.sp = first_process.stack.top().as_u64();

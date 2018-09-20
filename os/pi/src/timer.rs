@@ -8,9 +8,16 @@ const TIMER_REG_BASE: usize = IO_BASE + 0x3000;
 #[repr(C)]
 #[allow(non_snake_case)]
 struct Registers {
+    /// system timer control/status: records timer channel comparator matches
+    /// which are routed to the interrupt controller
     CS: Volatile<u32>,
+    /// system timer counter lower 32 bits
     CLO: ReadVolatile<u32>,
+    /// system timer counter higher 32 bits
     CHI: ReadVolatile<u32>,
+    /// system timer compare: holds the compare value for each of the four timer
+    /// channels, i.e. if CLO matches the value in COMPARE[i], then bit i of CS
+    /// is set to high (possibly triggering an interrup)
     COMPARE: [Volatile<u32>; 4]
 }
 
@@ -33,6 +40,15 @@ impl Timer {
         (self.registers.CHI.read() as u64) << 32 |
         (self.registers.CLO.read() as u64)
     }
+
+    /// Sets up a match in timer 1 to occur `us` microseconds from now. If
+    /// interrupts for timer 1 are enabled and IRQs are unmasked, then a timer
+    /// interrupt will be issued in `us` microseconds.
+    pub fn tick_in(&mut self, us: u32) {
+        let now_low = self.registers.CLO.read();
+        self.registers.CS.write(0b0010);
+        self.registers.COMPARE[1].write(now_low.wrapping_add(us));
+    }
 }
 
 /// Returns the current time in microseconds.
@@ -42,22 +58,22 @@ pub fn current_time() -> u64 {
 
 /// Spins until `us` microseconds have passed.
 pub fn spin_sleep_us(us: u64) {
-    let timer = Timer::new();
-    let end = timer.read() + us;
-    loop {
-        if timer.read() > end {
-            break;
-        }
-    }
+    let now = current_time();
+    while current_time() < now + us { }
 }
 
 /// Spins until `ms` milliseconds have passed.
 pub fn spin_sleep_ms(ms: u64) {
+    spin_sleep_us(ms * 1000);
+}
+
+/// Sets up a match in timer 1 to occur `us` microseconds from now. If
+/// interrupts for timer 1 are enabled and IRQs are unmasked, then a timer
+/// interrupt will be issued in `us` microseconds.
+pub fn tick_in(us: u32) {
     let timer = Timer::new();
-    let end = timer.read() + (ms * 1000);
-    loop {
-        if timer.read() > end {
-            break;
-        }
-    }
+    let now = timer.read();
+    let target = now + (us as u64);
+    timer.registers.CS.or_mask(0b10);
+    timer.registers.COMPARE[1].write(target as u32);
 }

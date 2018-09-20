@@ -19,7 +19,19 @@ pub enum Interrupt {
 #[repr(C)]
 #[allow(non_snake_case)]
 struct Registers {
-    // FIXME: Fill me in.
+    _basic_pending: Volatile<u32>,
+    irq_pending: [ReadVolatile<u32>; 2],
+    _fiq_control: Volatile<u32>,
+    enable_irq: [Volatile<u32>; 2],
+    _enable_basic: Volatile<u32>,
+    disable_irq: [Volatile<u32>; 2],
+    _disable_basic: Volatile<u32>
+}
+
+/// return index into array and index into the u32
+fn get_index(int: Interrupt) -> (usize, usize) {
+    let int = int as usize;
+    (int / 32, int % 32)
 }
 
 /// An interrupt controller. Used to enable and disable interrupts as well as to
@@ -38,16 +50,19 @@ impl Controller {
 
     /// Enables the interrupt `int`.
     pub fn enable(&mut self, int: Interrupt) {
-        unimplemented!()
+        let (reg, idx) = get_index(int);
+        self.registers.enable_irq[reg].or_mask(1 << idx);
     }
 
     /// Disables the interrupt `int`.
     pub fn disable(&mut self, int: Interrupt) {
-        unimplemented!()
+        let (reg, idx) = get_index(int);
+        self.registers.disable_irq[reg].or_mask(1 << idx);
     }
 
     /// Returns `true` if `int` is pending. Otherwise, returns `false`.
     pub fn is_pending(&self, int: Interrupt) -> bool {
-        unimplemented!()
+        let (reg, idx) = get_index(int);
+        self.registers.irq_pending[reg].has_mask(1 << idx)
     }
 }

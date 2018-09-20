@@ -7,6 +7,7 @@ use pi::interrupt::{Controller, Interrupt};
 
 pub use self::trap_frame::TrapFrame;
 
+use ::aarch64;
 use console::kprintln;
 use shell::shell;
 use self::syndrome::Syndrome;
@@ -45,10 +46,19 @@ pub struct Info {
 #[no_mangle]
 pub extern fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     kprintln!("info: {:#?}", info);
-    kprintln!("esr: {:#x?}", Syndrome::from(esr));
     kprintln!("trap frame: {:#x?}", tf);
-    tf.elr += 4;
+    if let (Kind::Irq, Source::LowerAArch64) = (info.kind, info.source) {
+        if Controller::new().is_pending(Interrupt::Timer1) {
+            kprintln!("tick!");
+            handle_irq(Interrupt::Timer1, tf);
+        }
+    }
     if let (Kind::Synchronous, Syndrome::Brk(_)) = (info.kind, Syndrome::from(esr)) {
+        kprintln!("esr: {:#x?}", Syndrome::from(esr));
+        tf.elr += 4;
         shell("DeBuG> ", true);
+    }
+    loop {
+        aarch64::nop();
     }
 }

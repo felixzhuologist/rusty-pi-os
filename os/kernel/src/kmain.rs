@@ -47,10 +47,6 @@ pub static SCHEDULER: GlobalScheduler = GlobalScheduler::uninitialized();
 /// entrypoint function for the first user process
 #[no_mangle]
 pub extern fn start_shell() {
-    unsafe { asm!("brk 1" :::: "volatile"); }
-    unsafe { asm!("brk 2" :::: "volatile"); }
-    shell::shell("DeBuG> ", true);
-    unsafe { asm!("brk 3" :::: "volatile"); }
     shell::shell("❯❯❯ ", false);
 }
 
